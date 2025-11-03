@@ -7,11 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .trim();
 
     const body = document.body;
-    if (robotoBold) body.style.fontFamily = robotoBold;
-
-    function createPlayerContainer() {
-      const div = document.createElement("div");
-      div.classList.add("youtube-video-embed-container");
+    if (robotoBold) {
       Object.assign(body.style, {
         fontFamily: robotoBold,
         background: "rgba(0, 0, 0, 0)",
@@ -20,7 +16,27 @@ document.addEventListener("DOMContentLoaded", () => {
         overflow: "hidden",
         margin: "0px",
       });
+    }
+
+    function createPlayerContainer() {
+      const div = document.createElement("div");
+      div.classList.add("youtube-video-embed-container");
+      Object.assign(div.style, {
+        background: "rgba(0, 0, 0, 0)",
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        display: "flex",
+        alignItems: "center",
+        alignContent: "center",
+        justifyItems: "center",
+        justifyContent: "center",
+        border: "none",
+      });
       body.appendChild(div);
+
       return div;
     }
     const container = createPlayerContainer();
