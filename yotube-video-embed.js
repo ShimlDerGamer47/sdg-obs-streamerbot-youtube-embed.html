@@ -47,9 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    if (videoId) createPlayerContainer();
-
-    const container = createPlayerContainer();
+    const container = videoId ? createPlayerContainer() : "";
 
     let autoplay = false;
     let muted = false;
@@ -140,6 +138,22 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     container.appendChild(iframe);
+
+    function securityToken() {
+      [body, container, iframe].forEach((element) => {
+        if (!element) return;
+
+        ["copy", "dragstart", "keydown", "select"].forEach((event) => {
+          if (!event) return;
+
+          element.addEventListener(event, (e) => e.preventDefault());
+        });
+
+        element.style.webkitUserSelect = "none";
+        element.style.userSelect = "none";
+      });
+    }
+    securityToken();
   } catch (error) {
     console.error("Error:", error);
   }
