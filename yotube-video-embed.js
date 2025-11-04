@@ -39,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
       return div;
     }
-    const container = createPlayerContainer();
 
     const params = new URLSearchParams(window.location.search);
     const videoId = params.get("videoId");
@@ -47,6 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.warn("Keine 'videoId' Parameter in der URL gefunden.");
       return;
     }
+
+    if (videoId) createPlayerContainer();
+
+    const container = createPlayerContainer();
 
     let autoplay = false;
     let muted = false;
