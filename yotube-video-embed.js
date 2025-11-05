@@ -98,8 +98,8 @@ document.addEventListener("DOMContentLoaded", () => {
       };
 
       player = new YT.Player("youtubePlayerApiContainerId", {
-        width: "100%",
-        height: "100%",
+        width: 1920,
+        height: 1080,
         videoId: videoId,
         playerVars: playerVars,
         events: {
@@ -113,8 +113,8 @@ document.addEventListener("DOMContentLoaded", () => {
     function onPlayerReady(event) {
       if (!player) return;
 
-      if (muted) player.mute();
-      else player.unMute();
+      if (muted) player.unMute();
+      else player.mute();
 
       if (start > 0) {
         try {
@@ -189,9 +189,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
       tag.async = true;
       tag.defer = true;
+      tag.src = "https://www.youtube.com/iframe_api";
       const firstScriptTag = document.getElementsByTagName("script")[0];
       firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
