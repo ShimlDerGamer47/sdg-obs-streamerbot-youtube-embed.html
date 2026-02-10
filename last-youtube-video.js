@@ -1,23 +1,18 @@
 document.addEventListener("DOMContentLoaded", () => {
   try {
     const params = new URLSearchParams(window.location.search);
-    const ytLastVidId = (
-      params.get("ytLastVidId") ||
-      params.get("videoId") ||
-      ""
-    ).trim();
+
+    const ytLastVidId = params.get("ytLastVidId") || "";
     const ytLastVidTitle = params.get("ytLastVidTitle") || "";
     const duration = parseInt(params.get("duration") || 0, 10);
 
     if (!ytLastVidId) {
-      console.warn(
-        "Keine Video-ID gefunden (ytLastVidId oder videoId Parameter).",
-      );
+      console.warn("Keine Video-ID gefunden!");
       return;
     }
 
     let autoplay = true;
-    let muted = true;
+    let muted = false;
     let controls = false;
     let loop = false;
     let start = 0;
@@ -48,17 +43,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!Number.isNaN(v) && v > 0) end = v;
     }
 
-    // Validierung
     if (end > 0 && end <= start) {
-      console.warn("'end' muss größer als 'start' sein. 'end' wird ignoriert.");
+      console.warn("'end' muss größer als 'start' sein.");
       end = 0;
-    }
-
-    if (autoplay && !muted) {
-      console.warn(
-        "Autoplay mit Ton wird von Browsern blockiert. 'muted' wird auf true gesetzt.",
-      );
-      muted = true;
     }
 
     const client = new StreamerbotClient({
@@ -69,23 +56,15 @@ document.addEventListener("DOMContentLoaded", () => {
       autoReconnect: true,
       immediate: true,
       onConnect: () => {
-        console.log(
-          "Der Streamer.bot hat sich über die API mit der Website verbunden!",
-        );
+        console.log("Streamer.bot verbunden!");
       },
       onDisconnect: () => {
-        console.warn(
-          "Der Streamer.bot kann sich nicht verbinden. Der Streamer.bot versucht es erneut.",
-        );
+        console.warn("Streamer.bot getrennt - versuche Reconnect...");
       },
       onError: () => {
-        console.error(
-          "Der Streamer.bot kann sich nicht verbinden mit der Website über die API!",
-        );
+        console.error("Streamer.bot Verbindungsfehler!");
       },
     });
-
-    console.log(client);
 
     const html = document.documentElement;
     const body = document.body;
@@ -99,16 +78,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const dragstart = "dragstart";
     const keydown = "keydown";
     const select = "select";
-
     const none = "none";
     const def = "default";
 
     (function bodyToken() {
       const eventArray = [copy, dragstart, keydown, select];
-
       eventArray.forEach((event) => {
         if (!event) return;
-
         body.addEventListener(event, (e) => e.preventDefault());
       });
 
@@ -122,13 +98,12 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     })();
 
-    const youtubePlayerDiv =
-      document.getElementById("youtubePlayerContainerId") ||
-      document.querySelector("#youtubePlayerContainerId");
-    const youtubePlayer =
-      document.getElementById("youtubePlayerId") ||
-      document.querySelector("#youtubePlayerId");
-    if (youtubePlayerDiv && ytLastVidTitle) {
+    const youtubePlayerDiv = document.getElementById(
+      "youtubePlayerContainerId",
+    );
+    const youtubePlayer = document.getElementById("youtubePlayerId");
+
+    if (youtubePlayerDiv && youtubePlayer && ytLastVidTitle) {
       youtubePlayer.setAttribute("title", ytLastVidTitle);
     }
 
@@ -141,54 +116,63 @@ document.addEventListener("DOMContentLoaded", () => {
     let endTimer = null;
 
     window.onYouTubeIframeAPIReady = function () {
+      console.log("YouTube IFrame API bereit!");
+
       const playerVars = {
         playsinline: 1,
         rel: 0,
+        iv_load_policy: 3,
+        modestbranding: 1,
         controls: controls ? 1 : 0,
-        autoplay: autoplay ? 1 : 0,
+        autoplay: 1,
+        mute: muted ? 1 : 0,
         start: start > 0 ? start : undefined,
+        end: end > 0 ? end : undefined,
         loop: loop ? 1 : 0,
         playlist: loop ? ytLastVidId : undefined,
-        modestbranding: 1,
+        enablejsapi: 1,
+        origin: window.location.origin,
       };
 
+      console.log("Player-Konfiguration:", {
+        videoId: ytLastVidId,
+        autoplay,
+        muted,
+        controls,
+        loop,
+        start,
+        end,
+      });
+
       player = new YT.Player("youtubePlayerId", {
-        width: 1920,
-        height: 1080,
+        width: "100%",
+        height: "100%",
         videoId: ytLastVidId,
         playerVars: playerVars,
         events: {
           onReady: onPlayerReady,
           onStateChange: onPlayerStateChange,
-          onError: (e) => console.error("YT Player Fehler:", e),
+          onError: onPlayerError,
         },
       });
     };
 
     function onPlayerReady(event) {
-      console.log("YouTube Player ist bereit!");
+      console.log("✅ YouTube Player ist bereit!");
 
       if (muted) {
         player.mute();
+        console.log("🔇 Player ist gemuted");
       } else {
         player.unMute();
+        player.setVolume(100);
+        console.log("🔊 Player hat Ton (100%)");
       }
 
-      if (start > 0) {
-        try {
-          player.seekTo(start, true);
-        } catch (e) {
-          console.warn("Konnte nicht zu Start-Position springen:", e);
-        }
-      }
-
-      if (autoplay) {
-        try {
-          event.target.playVideo();
-        } catch (err) {
-          console.warn("Autoplay wurde möglicherweise blockiert:", err);
-        }
-      }
+      setTimeout(() => {
+        event.target.playVideo();
+        console.log("▶️ Video wird gestartet...");
+      }, 100);
     }
 
     function clearEndTimer() {
@@ -201,35 +185,46 @@ document.addEventListener("DOMContentLoaded", () => {
     function onPlayerStateChange(event) {
       const YTState =
         window.YT && window.YT.PlayerState ? window.YT.PlayerState : null;
+      if (!YTState || !player) return;
 
-      if (!YTState) return;
+      const stateNames = {
+        [-1]: "UNSTARTED",
+        [0]: "ENDED",
+        [1]: "PLAYING",
+        [2]: "PAUSED",
+        [3]: "BUFFERING",
+        [5]: "CUED",
+      };
+
+      console.log(`📺 Player Status: ${stateNames[event.data] || event.data}`);
 
       if (event.data === YTState.PLAYING) {
         clearEndTimer();
-        console.log("Video spielt jetzt");
 
-        if (end > 0) {
-          const current = player.getCurrentTime ? player.getCurrentTime() : 0;
-          const remaining = Math.max(0, end - current);
+        const currentTime = player.getCurrentTime();
+        const totalDuration = player.getDuration();
+        console.log(
+          `⏱️ Video spielt: ${currentTime.toFixed(1)}s / ${totalDuration.toFixed(1)}s`,
+        );
+
+        if (end > 0 && !loop) {
+          const remaining = Math.max(0, end - currentTime);
+          console.log(
+            `⏲️ Stoppe Video in ${remaining.toFixed(1)}s bei Sekunde ${end}`,
+          );
 
           endTimer = setTimeout(
             () => {
-              if (!player) return;
-
-              if (loop) {
-                player.seekTo(start > 0 ? start : 0, true);
-                player.playVideo();
-                console.log("Video loop zurück zu Start");
-              } else {
+              if (player) {
                 player.pauseVideo();
-                console.log("Video bei 'end' Parameter gestoppt");
+                console.log("⏸️ Video bei 'end' gestoppt");
 
                 if (duration > 0) {
                   setTimeout(() => {
                     const iframe = document.querySelector("iframe");
                     if (iframe) {
                       iframe.src = "";
-                      console.log("IFrame geleert nach", duration, "ms");
+                      console.log(`🗑️ IFrame geleert nach ${duration}ms`);
                     }
                   }, duration);
                 }
@@ -245,16 +240,14 @@ document.addEventListener("DOMContentLoaded", () => {
         clearEndTimer();
       } else if (event.data === YTState.ENDED) {
         clearEndTimer();
-        console.log("Video ist komplett zu Ende");
+        console.log("🏁 Video ist zu Ende!");
 
         if (loop && end === 0) {
-          try {
+          setTimeout(() => {
             player.seekTo(start > 0 ? start : 0, true);
             player.playVideo();
-            console.log("Video loop - neu gestartet");
-          } catch (err) {
-            console.warn("Loop-Fehler:", err);
-          }
+            console.log("🔄 Video loop - neu gestartet");
+          }, 100);
         } else {
           if (duration > 0) {
             setTimeout(() => {
@@ -262,9 +255,7 @@ document.addEventListener("DOMContentLoaded", () => {
               if (iframe) {
                 iframe.src = "";
                 console.log(
-                  "IFrame geleert nach Video-Ende, duration:",
-                  duration,
-                  "ms",
+                  `🗑️ IFrame geleert nach Video-Ende (${duration}ms)`,
                 );
               }
             }, duration);
@@ -273,23 +264,34 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    function onPlayerError(event) {
+      console.error("❌ YouTube Player Fehler:", event.data);
+      const errorCodes = {
+        2: "Ungültige Video-ID",
+        5: "HTML5 Player Fehler",
+        100: "Video nicht gefunden",
+        101: "Video nicht einbettbar (Eigentümer-Einstellung)",
+        150: "Video nicht einbettbar (Eigentümer-Einstellung)",
+      };
+      console.error(
+        `Fehlercode ${event.data}: ${errorCodes[event.data] || "Unbekannter Fehler"}`,
+      );
+    }
+
     (function elementToken() {
       const elementArray = [youtubePlayerDiv, youtubePlayer];
       const eventArray = [copy, dragstart, keydown, select];
 
       elementArray.forEach((element) => {
         if (!element) return;
-
         eventArray.forEach((event) => {
           if (!event) return;
-
           element.addEventListener(event, (e) => e.preventDefault());
         });
       });
 
       elementArray.filter(Boolean).forEach((element) => {
         if (!element) return;
-
         if (robotoBold) {
           Object.assign(element.style, {
             fontFamily: robotoBold,
@@ -300,11 +302,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      if (youtubePlayerDiv && youtubePlayer) {
+      if (youtubePlayer) {
         youtubePlayer.style.borderRadius = "25px";
       }
     })();
+
+    console.log("🚀 YouTube Player Initialisierung gestartet!");
   } catch (error) {
-    console.error("Haupt-Fehler:", error);
+    console.error("💥 Hauptfehler:", error);
   }
 });
