@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!Number.isNaN(v) && v > 0) end = v;
     }
 
+    // Validierung
     if (end > 0 && end <= start) {
       console.warn("'end' muss größer als 'start' sein. 'end' wird ignoriert.");
       end = 0;
@@ -137,7 +138,6 @@ document.addEventListener("DOMContentLoaded", () => {
     firstScriptTag.parentNode.insertBefore(script, firstScriptTag);
 
     let player = null;
-    let done = false;
     let endTimer = null;
 
     window.onYouTubeIframeAPIReady = function () {
@@ -147,8 +147,8 @@ document.addEventListener("DOMContentLoaded", () => {
         controls: controls ? 1 : 0,
         autoplay: autoplay ? 1 : 0,
         start: start > 0 ? start : undefined,
-        loop: !end && loop ? 1 : 0,
-        playlist: !end && loop ? ytLastVidId : undefined,
+        loop: loop ? 1 : 0,
+        playlist: loop ? ytLastVidId : undefined,
         modestbranding: 1,
       };
 
@@ -206,6 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (event.data === YTState.PLAYING) {
         clearEndTimer();
+        console.log("Video spielt jetzt");
 
         if (end > 0) {
           const current = player.getCurrentTime ? player.getCurrentTime() : 0;
@@ -218,50 +219,56 @@ document.addEventListener("DOMContentLoaded", () => {
               if (loop) {
                 player.seekTo(start > 0 ? start : 0, true);
                 player.playVideo();
+                console.log("Video loop zurück zu Start");
               } else {
                 player.pauseVideo();
-                console.log("Video bei 'end' gestoppt");
+                console.log("Video bei 'end' Parameter gestoppt");
+
+                if (duration > 0) {
+                  setTimeout(() => {
+                    const iframe = document.querySelector("iframe");
+                    if (iframe) {
+                      iframe.src = "";
+                      console.log("IFrame geleert nach", duration, "ms");
+                    }
+                  }, duration);
+                }
               }
             },
             Math.ceil(remaining * 1000),
           );
         }
-
-        if (!done && !loop && end === 0) {
-          setTimeout(stopVideo, 6000);
-          done = true;
-        }
       } else if (
         event.data === YTState.PAUSED ||
-        event.data === YTState.BUFFERING ||
-        event.data === YTState.ENDED
+        event.data === YTState.BUFFERING
       ) {
         clearEndTimer();
-      }
+      } else if (event.data === YTState.ENDED) {
+        clearEndTimer();
+        console.log("Video ist komplett zu Ende");
 
-      if (event.data === YTState.ENDED && end === 0 && loop) {
-        try {
-          player.seekTo(start > 0 ? start : 0, true);
-          player.playVideo();
-        } catch (err) {
-          console.warn("Loop-Fehler:", err);
-        }
-      }
-    }
-
-    function stopVideo() {
-      if (player) {
-        player.stopVideo();
-        console.log("Video gestoppt (nach 6 Sek.)");
-
-        if (duration > 0) {
-          setTimeout(() => {
-            const iframe = document.querySelector("iframe");
-            if (iframe) {
-              iframe.src = "";
-              console.log("IFrame geleert nach", duration, "ms");
-            }
-          }, duration);
+        if (loop && end === 0) {
+          try {
+            player.seekTo(start > 0 ? start : 0, true);
+            player.playVideo();
+            console.log("Video loop - neu gestartet");
+          } catch (err) {
+            console.warn("Loop-Fehler:", err);
+          }
+        } else {
+          if (duration > 0) {
+            setTimeout(() => {
+              const iframe = document.querySelector("iframe");
+              if (iframe) {
+                iframe.src = "";
+                console.log(
+                  "IFrame geleert nach Video-Ende, duration:",
+                  duration,
+                  "ms",
+                );
+              }
+            }, duration);
+          }
         }
       }
     }
